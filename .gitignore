@@ -1,12 +1,33 @@
-# Ignorar variables de entorno
-.env
-
-# Ignorar dependencias
+# Dependencies
 node_modules/
+package-lock.json
 
-# Archivos de logs
-logs/
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+data/*.db
+data/*.db-journal
+
+# Logs
+logs/*.log
 *.log
 
-# Archivos temporales
+# Exports
+exports/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/

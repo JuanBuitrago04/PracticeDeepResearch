@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import { config } from "./config.js";
 
 dotenv.config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -51,10 +52,10 @@ Responde SOLO en formato JSON válido:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+      model: config.gaia.model,
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 350,
-      temperature: 0.1, // baja aleatoriedad, resultados más consistentes
+      max_tokens: config.gaia.maxTokens,
+      temperature: config.gaia.temperature, // baja aleatoriedad, resultados más consistentes
     });
 
     let content = response.choices[0].message.content.trim();

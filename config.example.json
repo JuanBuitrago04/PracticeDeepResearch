@@ -1,0 +1,54 @@
+{
+  "research": {
+    "maxIterations": 5,
+    "qualityThreshold": 85,
+    "minSources": 3,
+    "maxSources": 10,
+    "timeout": 300000
+  },
+  "gaia": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.1,
+    "maxTokens": 350
+  },
+  "openai": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "maxTokens": 4000
+  },
+  "cache": {
+    "enabled": true,
+    "ttl": 86400000
+  },
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "database": {
+    "path": "./data/research.db"
+  },
+  "export": {
+    "formats": ["json", "markdown", "pdf"],
+    "outputDir": "./exports"
+  },
+  "sources": {
+    "web": {
+      "enabled": true,
+      "maxResults": 10,
+      "timeout": 10000
+    },
+    "academic": {
+      "enabled": false,
+      "apis": {
+        "crossref": {
+          "enabled": false,
+          "email": ""
+        },
+        "arxiv": {
+          "enabled": false
+        }
+      }
+    }
+  }
+}
+

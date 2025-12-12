@@ -4,6 +4,15 @@ import { preProcesarConsulta } from "./assistants.js";
 import { buscarFuentes } from "./tools.js";
 import { evaluarEfectividad } from "./gaia.js";
 import { registrarEvento, iniciarSesion, finalizarSesion } from "./logs.js";
+import { config } from "./config.js";
+import {
+  createSession,
+  updateSessionStatus,
+  saveResult,
+  saveSources,
+  getCachedResult,
+  setCachedResult,
+} from "./database.js";
 
 dotenv.config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -18,16 +27,33 @@ function verificarAcceso(usuario = 'admin') {
   }
 }
 
-async function deepResearch(query, maxIteraciones = 5, usuario = 'admin') {
+export async function deepResearch(query, maxIteraciones = 5, usuario = 'admin') {
   verificarAcceso(usuario);
+  
+  // Verificar caché si está habilitado
+  if (config.cache.enabled) {
+    const cached = getCachedResult(query);
+    if (cached) {
+      console.log("📦 Resultado obtenido del caché");
+      return cached;
+    }
+  }
+  
+  // Crear sesión en base de datos
+  const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  createSession(sessionId, query, usuario, { maxIteraciones });
+  
   iniciarSesion(query);
-  registrarEvento("Inicio", `Consulta: ${query}, Usuario: ${usuario}`);
+  registrarEvento("Inicio", `Consulta: ${query}, Usuario: ${usuario}, SessionId: ${sessionId}`);
 
   const preproceso = preProcesarConsulta(query);
   registrarEvento("Preprocesamiento", `Categoría: ${preproceso.categoria}, Entidades: ${preproceso.entidades.join(', ')}`);
 
   let fuentes = await buscarFuentes(query);
   registrarEvento("Búsqueda Inicial", `Fuentes encontradas: ${fuentes.length}`);
+  
+  // Guardar fuentes en base de datos
+  saveSources(sessionId, fuentes);
 
   let analisis = "";
   let evaluacion = { efectividad: 0, cobertura: 0, mejora: 0, observaciones: "" };
@@ -92,8 +118,10 @@ GENERA EL ANÁLISIS COMPLETO AHORA:
 `;
 
     const respuesta = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }]
+      model: config.openai.model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: config.openai.maxTokens,
+      temperature: config.openai.temperature,
     });
 
     analisis = respuesta.choices[0].message.content;
@@ -103,8 +131,15 @@ GENERA EL ANÁLISIS COMPLETO AHORA:
     registrarEvento(`Evaluación Iteración ${iteracion}`,
       `Efectividad: ${evaluacion.efectividad}%, Cobertura: ${(evaluacion.cobertura * 100).toFixed(1)}%, Mejora: ${(evaluacion.mejora * 100).toFixed(1)}%`);
 
-    // Si la efectividad es buena (>=85%) o es la última iteración, terminar
-    if (evaluacion.efectividad >= 85 || iteracion === maxIteraciones) {
+    // Guardar resultado de esta iteración
+    saveResult(sessionId, iteracion, {
+      analisis,
+      evaluacion,
+      fuentes: fuentes.length,
+    });
+
+    // Si la efectividad es buena (>=threshold) o es la última iteración, terminar
+    if (evaluacion.efectividad >= config.research.qualityThreshold || iteracion === maxIteraciones) {
       break;
     }
 
@@ -128,13 +163,27 @@ GENERA EL ANÁLISIS COMPLETO AHORA:
   console.log(`🔁 Iteraciones realizadas: ${iteracion}`);
 
   const resultado = {
+    sessionId,
     analisis,
     evaluacion,
     iteraciones: iteracion,
     fuentes: fuentes.length,
     usuario,
+    query,
     timestamp: new Date().toISOString()
   };
+
+  // Actualizar sesión como completada
+  updateSessionStatus(sessionId, 'completed', {
+    efectividad: evaluacion.efectividad,
+    cobertura: evaluacion.cobertura,
+    iteraciones: iteracion,
+  });
+
+  // Guardar en caché si está habilitado
+  if (config.cache.enabled) {
+    setCachedResult(query, resultado);
+  }
 
   finalizarSesion(resultado);
   return resultado;
@@ -162,7 +211,8 @@ export async function deepResearchConcurrente(queries, maxIteraciones = 3, usuar
   return { exitosos, fallidos };
 }
 
-deepResearch("Como evoluciona la tecnologia en Colombia?");
+// Ejemplo de uso (descomentado para probar):
+// deepResearch("precio del dólar?");
 
 // Ejemplo de uso concurrente (descomentado para probar):
 // deepResearchConcurrente([
