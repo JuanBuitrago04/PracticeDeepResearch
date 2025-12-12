@@ -51,13 +51,7 @@ DeepResearch is an advanced AI-driven research platform that automates the entir
    # Edit .env with your OpenAI API key
    ```
 
-4. **Configure environment**
-   ```bash
-   # Create .env file (copy from .env.example)
-   # Add your OPENAI_API_KEY
-   ```
-
-5. **Choose your interface:**
+4. **Choose your interface:**
    
    **Option A: Web Interface (Recommended)**
    ```bash
